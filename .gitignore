@@ -1,0 +1,14 @@
+# Screenshots
+*.png
+*.jpg
+*.jpeg
+
+# Exported STL files (regenerate from .scad sources)
+*.stl
+
+# OpenSCAD cache
+*.deps
+
+# OS files
+Thumbs.db
+.DS_Store
