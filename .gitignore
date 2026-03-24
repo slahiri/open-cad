@@ -6,6 +6,7 @@
 
 # Exported STL files (regenerate from .scad sources)
 *.stl
+!stl/parts/*.stl
 
 # OpenSCAD cache
 *.deps

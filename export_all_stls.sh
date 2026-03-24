@@ -4,7 +4,7 @@
 # Run from the open-cad/ directory: bash export_all_stls.sh
 #
 # Source .scad files: cad/
-# Output .stl files:  stl/
+# Output .stl files:  stl/parts/
 #
 # Only the files listed below are processed — not all .scad files.
 # ============================================================================
@@ -15,23 +15,14 @@ STL_DIR="stl/parts"
 
 mkdir -p "$STL_DIR"
 
-# Explicit file list: "source_scad:output_stl"
-# Only these files get exported — nothing else in cad/ is touched.
+# 3 print plates:
+#   1. plate_box   — main box (bottom middle + 2 end caps)
+#   2. plate_lid   — lid (middle + 2 end caps)
+#   3. plate_small — tray compartments (3 middle + 2 ends) + hardware
 FILES=(
-    "stl_all_hardware:all_hardware"
-    "stl_weave_frame_left:weave_frame_left"
-    "stl_weave_frame_right:weave_frame_right"
-    "stl_weave_x_left:weave_x_left"
-    "stl_weave_x_right:weave_x_right"
-    "stl_weave_y_left:weave_y_left"
-    "stl_weave_y_right:weave_y_right"
-    "stl_tray_left:tray_left"
-    "stl_tray_right:tray_right"
-    "stl_lid_left:lid_left"
-    "stl_lid_right:lid_right"
-    "stl_bottom_left:bottom_left"
-    "stl_bottom_right:bottom_right"
-    "stl_split_clamp:split_clamps"
+    "stl_plate_box:plate_box"
+    "stl_plate_lid:plate_lid"
+    "stl_plate_small:plate_small"
 )
 
 echo "=========================================="

@@ -266,14 +266,6 @@ module box_lid() {
                     cylinder(d = hinge_screw_d, h = wall + 0.02);
         }
 
-        // Recess for weave insert on outer surface (Z=0 in lid coords)
-        translate([mesh_margin, mesh_margin, -0.01])
-            rounded_box(
-                length - 2 * mesh_margin,
-                width - 2 * mesh_margin,
-                mesh_depth + 0.01,
-                max(corner_r - mesh_margin, 2)
-            );
     }
 }
 
@@ -554,138 +546,290 @@ module latch_print_layout() {
 }
 
 // ============================================================================
-// SPLIT PARTS — For beds smaller than 420mm (e.g. Creality K2 Plus 350mm)
+// SPLIT PARTS — 3-piece: 320mm middle + two 50mm snap-on end caps
 // ============================================================================
-// Each half is ~210×110mm, fits easily on a 350mm bed.
-// Halves join with interlocking lap joint + printable clamp clips.
+// Fits Creality K2 Plus (350mm bed). No screws or hardware needed.
+// End caps slide onto the middle section via dovetail sleeve joints
+// with snap-fit detents for a sturdy, tool-free connection.
 
-// Lap joint parameters
-lap_depth = wall / 2;        // half the wall thickness overlaps
-lap_length = 10;             // overlap length along X axis
+// Split geometry
+end_cap_len  = 50;                        // each end cap length
+mid_start    = end_cap_len;               // middle starts at X=50
+mid_end      = length - end_cap_len;      // middle ends at X=370
+mid_len      = mid_end - mid_start;       // 320mm middle
 
-// Clamp parameters
-clamp_thickness = 2.5;       // clamp wall thickness
-clamp_clearance = 0.3;       // fit clearance
-clamp_grip      = 15;        // how far clamp extends onto each half
-clamp_tab_h     = 8;         // height of each clamp tab
+// Sleeve joint parameters
+sleeve_len     = 20;       // how far the sleeve overlap extends
+sleeve_wall    = wall / 2; // half wall thickness for each mating surface
+sleeve_gap     = 0.15;     // print tolerance / clearance
+detent_h       = 0.6;      // snap bump height
+detent_w       = 8;        // snap bump width
+detent_pos_z_b = [wall + 20, bottom_h - 20]; // detent Z positions (bottom)
+detent_pos_z_l = [wall + 12, lid_h - 12];    // detent Z positions (lid)
 
-// --- Lap joint cutout shapes ---
-// Left half keeps outer wall at cut, inner is recessed
-// Right half keeps inner wall at cut, outer is recessed
-// When mated, they interlock like a step joint
+// --- Sleeve joint: middle section has thinned outer walls at each end ---
+// End caps have a matching inner sleeve that wraps around the thinned section
+// When pushed together: outer surfaces are flush, detents click into place
 
-module _lap_cut_outer(h) {
-    // Cuts the outer half of the wall at the split face
-    translate([split_x - lap_length, -0.01, -0.01])
-        cube([lap_length + 0.01, wall/2 + 0.01, h + 0.02]);
-    translate([split_x - lap_length, width - wall/2, -0.01])
-        cube([lap_length + 0.01, wall/2 + 0.01, h + 0.02]);
+// Detent bumps — small ridges that snap into matching grooves
+module _detent_bumps(z_positions) {
+    for (z = z_positions)
+        for (y = [wall/4, width - wall/4])
+            translate([-0.01, y - detent_w/2, z - detent_w/2])
+                rotate([0, 90, 0])
+                    cylinder(d = detent_h * 2, h = 0.01 + sleeve_len * 0.3, $fn = 16);
 }
 
-module _lap_cut_inner(h) {
-    // Cuts the inner half of the wall at the split face
-    translate([split_x - lap_length, wall/2, -0.01])
-        cube([lap_length + 0.01, wall/2 + 0.01, h + 0.02]);
-    translate([split_x - lap_length, width - wall, -0.01])
-        cube([lap_length + 0.01, wall/2 + 0.01, h + 0.02]);
+module _detent_grooves(z_positions) {
+    for (z = z_positions)
+        for (y = [wall/4, width - wall/4])
+            translate([-0.5, y - detent_w/2, z - detent_w/2])
+                rotate([0, 90, 0])
+                    cylinder(d = detent_h * 2 + sleeve_gap * 2, h = sleeve_len * 0.3 + 1, $fn = 16);
 }
 
-// --- Split clamp clip — prints flat, snaps over the joint ---
-module split_clamp() {
-    // U-shaped clip that grips over the box wall at the joint
-    inner_gap = wall + 2 * clamp_clearance;
-    outer_w = inner_gap + 2 * clamp_thickness;
-    total_l = 2 * clamp_grip;
+// ---- BOX BOTTOM: 3 pieces ----
 
-    difference() {
-        // Outer shell
-        translate([-clamp_grip, -clamp_thickness, 0])
-            cube([total_l, outer_w, clamp_tab_h]);
-        // Inner channel (fits over wall)
-        translate([-clamp_grip - 0.01, clamp_clearance, -0.01])
-            cube([total_l + 0.02, inner_gap, clamp_tab_h + 0.02]);
-        // Entry chamfer for easier snap-on
-        translate([-clamp_grip - 0.01, -clamp_thickness - 0.01, clamp_tab_h - 1.5])
-            rotate([0, 0, 0])
-                cube([total_l + 0.02, clamp_thickness * 0.6, 1.51]);
-        translate([-clamp_grip - 0.01, inner_gap + clamp_clearance, clamp_tab_h - 1.5])
-            cube([total_l + 0.02, clamp_thickness * 0.6, 1.51]);
-    }
-    // Inner grip ridges for friction
-    for (side = [0, inner_gap + clamp_clearance - 0.4])
-        for (xo = [-clamp_grip + 3, clamp_grip - 4])
-            translate([xo, side, 1])
-                cube([1, 0.4, clamp_tab_h - 2]);
-}
-
-module box_bottom_left() {
+module box_bottom_middle() {
     difference() {
         intersection() {
             box_bottom();
-            translate([-1, -1, -standoff_h - 1])
-                cube([split_x + lap_length + 1, width + 2, bottom_h + standoff_h + 2]);
+            translate([mid_start, -1, -standoff_h - 1])
+                cube([mid_len, width + 2, bottom_h + standoff_h + 2]);
         }
-        // Remove inner wall at the overlap zone (right side mates here)
-        _lap_cut_inner(bottom_h);
+        // Thin the outer walls at both ends for sleeve joint
+        // Left end: remove outer half of front/back walls
+        for (y_start = [-0.01, width - sleeve_wall])
+            translate([mid_start - 0.01, y_start, -0.01])
+                cube([sleeve_len + 0.01, sleeve_wall + 0.01, bottom_h + 0.02]);
+        // Right end: same
+        for (y_start = [-0.01, width - sleeve_wall])
+            translate([mid_end - sleeve_len, y_start, -0.01])
+                cube([sleeve_len + 0.01, sleeve_wall + 0.01, bottom_h + 0.02]);
+        // Detent grooves at both ends
+        translate([mid_start, 0, 0]) _detent_grooves(detent_pos_z_b);
+        translate([mid_end, 0, 0]) mirror([1,0,0]) _detent_grooves(detent_pos_z_b);
     }
+    // Shift to origin for printing
+    // (already near origin since mid_start=50, acceptable)
 }
 
-module box_bottom_right() {
-    translate([-split_x, 0, 0])
+module box_bottom_end_left() {
     difference() {
-        intersection() {
-            box_bottom();
-            translate([split_x - lap_length, -1, -standoff_h - 1])
-                cube([length - split_x + lap_length + 1, width + 2, bottom_h + standoff_h + 2]);
+        union() {
+            // The end cap itself
+            intersection() {
+                box_bottom();
+                translate([-1, -1, -standoff_h - 1])
+                    cube([end_cap_len + 1, width + 2, bottom_h + standoff_h + 2]);
+            }
+            // Inner sleeve extensions — wrap around thinned middle walls
+            for (y_start = [sleeve_gap, width - sleeve_wall + sleeve_gap]) {
+                translate([end_cap_len, y_start, wall])
+                    cube([sleeve_len - sleeve_gap, sleeve_wall - 2*sleeve_gap, bottom_h - wall]);
+            }
         }
-        // Remove outer wall at the overlap zone (left side mates here)
-        _lap_cut_outer(bottom_h);
+        // Floor clearance for sleeve (don't block the bottom)
+        // Nothing needed — sleeve sits above the floor
     }
+    // Detent bumps on the sleeve
+    translate([end_cap_len, 0, 0]) _detent_bumps(detent_pos_z_b);
 }
 
-module box_lid_left() {
+module box_bottom_end_right() {
+    right_start = mid_end;
+    translate([-right_start, 0, 0])
+    difference() {
+        union() {
+            intersection() {
+                box_bottom();
+                translate([right_start, -1, -standoff_h - 1])
+                    cube([end_cap_len + 1, width + 2, bottom_h + standoff_h + 2]);
+            }
+            // Inner sleeve extensions
+            for (y_start = [sleeve_gap, width - sleeve_wall + sleeve_gap]) {
+                translate([right_start - sleeve_len + sleeve_gap, y_start, wall])
+                    cube([sleeve_len - sleeve_gap, sleeve_wall - 2*sleeve_gap, bottom_h - wall]);
+            }
+        }
+    }
+    // Detent bumps
+    translate([-right_start, 0, 0])
+    translate([right_start, 0, 0]) mirror([1,0,0]) _detent_bumps(detent_pos_z_b);
+}
+
+// ---- BOX LID: 3 pieces ----
+
+module box_lid_middle() {
     difference() {
         intersection() {
             box_lid();
-            translate([-1, -1, -1])
-                cube([split_x + lap_length + 1, width + 2, lid_h + 2]);
+            translate([mid_start, -1, -1])
+                cube([mid_len, width + 2, lid_h + 2]);
         }
-        _lap_cut_inner(lid_h);
+        // Thin outer walls at both ends
+        for (y_start = [-0.01, width - sleeve_wall])
+            translate([mid_start - 0.01, y_start, -0.01])
+                cube([sleeve_len + 0.01, sleeve_wall + 0.01, lid_h + 0.02]);
+        for (y_start = [-0.01, width - sleeve_wall])
+            translate([mid_end - sleeve_len, y_start, -0.01])
+                cube([sleeve_len + 0.01, sleeve_wall + 0.01, lid_h + 0.02]);
+        // Detent grooves
+        translate([mid_start, 0, 0]) _detent_grooves(detent_pos_z_l);
+        translate([mid_end, 0, 0]) mirror([1,0,0]) _detent_grooves(detent_pos_z_l);
     }
 }
 
-module box_lid_right() {
-    translate([-split_x, 0, 0])
+module box_lid_end_left() {
     difference() {
-        intersection() {
-            box_lid();
-            translate([split_x - lap_length, -1, -1])
-                cube([length - split_x + lap_length + 1, width + 2, lid_h + 2]);
+        union() {
+            intersection() {
+                box_lid();
+                translate([-1, -1, -1])
+                    cube([end_cap_len + 1, width + 2, lid_h + 2]);
+            }
+            for (y_start = [sleeve_gap, width - sleeve_wall + sleeve_gap]) {
+                translate([end_cap_len, y_start, wall])
+                    cube([sleeve_len - sleeve_gap, sleeve_wall - 2*sleeve_gap, lid_h - wall]);
+            }
         }
-        _lap_cut_outer(lid_h);
+    }
+    translate([end_cap_len, 0, 0]) _detent_bumps(detent_pos_z_l);
+}
+
+module box_lid_end_right() {
+    right_start = mid_end;
+    translate([-right_start, 0, 0])
+    difference() {
+        union() {
+            intersection() {
+                box_lid();
+                translate([right_start, -1, -1])
+                    cube([end_cap_len + 1, width + 2, lid_h + 2]);
+            }
+            for (y_start = [sleeve_gap, width - sleeve_wall + sleeve_gap]) {
+                translate([right_start - sleeve_len + sleeve_gap, y_start, wall])
+                    cube([sleeve_len - sleeve_gap, sleeve_wall - 2*sleeve_gap, lid_h - wall]);
+            }
+        }
+    }
+    translate([-right_start, 0, 0])
+    translate([right_start, 0, 0]) mirror([1,0,0]) _detent_bumps(detent_pos_z_l);
+}
+
+// ---- TRAY: 3 independent open boxes (compartments) ----
+// The middle section is split into 3 equal compartments with divider walls.
+// Each compartment is a standalone open box that sits in the main box.
+
+tray_inner_l = length - 2 * wall - 2 * tray_gap;
+tray_inner_w = width - 2 * wall - 2 * tray_gap;
+tray_cap_len = end_cap_len - wall - tray_gap;
+tray_mid_total = tray_inner_l - 2 * tray_cap_len;
+n_compartments = 3;
+compartment_gap = 1;  // gap between compartments
+compartment_len = (tray_mid_total - (n_compartments - 1) * compartment_gap) / n_compartments;
+
+module tray_compartment() {
+    // Single open box compartment
+    cw = tray_inner_w;
+    difference() {
+        rounded_box(compartment_len, cw, tray_h, max(inner_r, 2));
+        translate([tray_wall, tray_wall, tray_wall])
+            rounded_box(compartment_len - 2*tray_wall, cw - 2*tray_wall,
+                        tray_h + 1, max(inner_r - tray_wall, 1));
     }
 }
 
-module tray_left() {
-    inner_l = length - 2 * wall;
-    tray_l = inner_l - 2 * tray_gap;
-    intersection() {
-        tray();
-        translate([-1, -1, -1])
-            cube([tray_l / 2 + lap_length + 1, width, tray_h + 2]);
+module tray_middle() {
+    // 3 compartments side by side along X
+    for (i = [0 : n_compartments - 1]) {
+        translate([i * (compartment_len + compartment_gap), 0, 0])
+            tray_compartment();
     }
 }
 
-module tray_right() {
-    inner_l = length - 2 * wall;
-    tray_l = inner_l - 2 * tray_gap;
-    translate([-tray_l / 2, 0, 0])
-    intersection() {
-        tray();
-        translate([tray_l / 2 - lap_length, -1, -1])
-            cube([tray_l / 2 + lap_length + 1, width, tray_h + 2]);
+module tray_end_left() {
+    // Left end cap compartment
+    cw = tray_inner_w;
+    difference() {
+        rounded_box(tray_cap_len, cw, tray_h, max(inner_r, 2));
+        translate([tray_wall, tray_wall, tray_wall])
+            rounded_box(tray_cap_len - 2*tray_wall, cw - 2*tray_wall,
+                        tray_h + 1, max(inner_r - tray_wall, 1));
+        // Finger notch on the short end
+        translate([tray_cap_len/2 - notch_w/2, -0.01, tray_h - notch_h])
+            cube([notch_w, tray_wall + 0.02, notch_h + 0.01]);
     }
 }
+
+module tray_end_right() {
+    // Right end cap compartment
+    cw = tray_inner_w;
+    difference() {
+        rounded_box(tray_cap_len, cw, tray_h, max(inner_r, 2));
+        translate([tray_wall, tray_wall, tray_wall])
+            rounded_box(tray_cap_len - 2*tray_wall, cw - 2*tray_wall,
+                        tray_h + 1, max(inner_r - tray_wall, 1));
+        // Finger notch on the short end
+        translate([tray_cap_len/2 - notch_w/2, cw - tray_wall - 0.01, tray_h - notch_h])
+            cube([notch_w, tray_wall + 0.02, notch_h + 0.01]);
+    }
+}
+
+// ---- Combined print plates ----
+// Plate 1: All box bottom parts — middle at origin, end caps beside it
+module print_plate_box() {
+    // Middle bottom shifted to origin (it normally starts at X=mid_start)
+    translate([-mid_start, 0, 0])
+        box_bottom_middle();
+    // Left end cap beside middle (gap of 10mm)
+    translate([mid_len + 10, 0, 0])
+        box_bottom_end_left();
+    // Right end cap beside left cap
+    translate([mid_len + 10 + end_cap_len + 10, 0, 0])
+        box_bottom_end_right();
+}
+
+// Plate 2: All lid parts — flipped for printing (opening up)
+module print_plate_lid() {
+    // Middle lid shifted to origin and flipped
+    rotate([180, 0, 0]) translate([-mid_start, -width, -lid_h])
+        box_lid_middle();
+    // Left end cap
+    translate([mid_len + 10, 0, 0])
+        rotate([180, 0, 0]) translate([0, -width, -lid_h])
+            box_lid_end_left();
+    // Right end cap
+    translate([mid_len + 10 + end_cap_len + 10, 0, 0])
+        rotate([180, 0, 0]) translate([0, -width, -lid_h])
+            box_lid_end_right();
+}
+
+// Plate 3: All tray compartments + hardware
+module print_plate_small() {
+    // 3 middle compartments
+    tray_middle();
+    // End cap trays beside them
+    translate([tray_mid_total + 10, 0, 0])
+        tray_end_left();
+    translate([tray_mid_total + 10 + tray_cap_len + 10, 0, 0])
+        tray_end_right();
+    // Hardware below with gap
+    translate([0, tray_inner_w + 15, 0]) {
+        hinge_print_layout();
+        translate([0, 30, 0]) hinge_print_layout();
+        translate([0, 60, 0]) latch_print_layout();
+        translate([0, 100, 0]) latch_print_layout();
+    }
+}
+
+// ---- Legacy aliases for backward compat ----
+module box_bottom_left() { box_bottom_end_left(); }
+module box_bottom_right() { box_bottom_end_right(); }
+module box_lid_left() { box_lid_end_left(); }
+module box_lid_right() { box_lid_end_right(); }
+module tray_left() { tray_end_left(); }
+module tray_right() { tray_end_right(); }
 
 // ============================================================================
 // ASSEMBLY MODULE — call with different parameters for different views
@@ -732,15 +876,6 @@ module assembly(lid_ang = 120, show_tray = true, tray_z_lift = 0) {
             translate([0, 0, total_height])
                 mirror([0, 0, 1])
                     box_lid();
-
-        // Weave insert — two colors
-        translate([mesh_margin + mesh_gap, mesh_margin + mesh_gap,
-                   total_height - mesh_depth])
-        {
-            color("DimGray")  lid_weave_frame();
-            color("White")    lid_weave_x_strips();
-            color("RoyalBlue") lid_weave_y_strips();
-        }
 
         // Hinge Part B — rotates with lid
         for (i = [1, 2]) {

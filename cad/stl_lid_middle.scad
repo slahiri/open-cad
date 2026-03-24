@@ -2,4 +2,4 @@ include <protective_storage_box.scad>
 lid_angle = 0;
 show_tray_in_assembly = false;
 render_assembly = false;
-lid_weave_x_strips_left();
+rotate([180, 0, 0]) translate([-mid_start, -width, -lid_h]) box_lid_middle();
