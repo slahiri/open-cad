@@ -23,6 +23,7 @@
 lid_angle = 120;               // 0=closed, 90=upright, 120=fully open
 show_tray_in_assembly = true;  // show/hide tray
 tray_lift = 0;                 // 0=inside box, >0=lifted out by this many mm
+render_assembly = true;        // set false in export files to suppress assembly
 
 // --- Global Parameters ---
 length       = 420;
@@ -371,6 +372,67 @@ module lid_mesh_insert() {
     lid_weave_y_strips();
 }
 
+// --- Split weave parts (for beds <420mm) ---
+// Weave split at center; each half ~198mm, fits on 350mm bed.
+weave_split_x = weave_insert_l() / 2;
+
+module lid_weave_frame_left() {
+    il = weave_insert_l();
+    intersection() {
+        lid_weave_frame();
+        translate([-1, -1, -0.01])
+            cube([weave_split_x + 1, il + 2, mesh_depth + 0.02]);
+    }
+}
+
+module lid_weave_frame_right() {
+    il = weave_insert_l();
+    translate([-weave_split_x, 0, 0])
+    intersection() {
+        lid_weave_frame();
+        translate([weave_split_x, -1, -0.01])
+            cube([il - weave_split_x + 1, il + 2, mesh_depth + 0.02]);
+    }
+}
+
+module lid_weave_x_strips_left() {
+    il = weave_insert_l();
+    intersection() {
+        lid_weave_x_strips();
+        translate([-1, -1, -0.01])
+            cube([weave_split_x + 1, il + 2, mesh_depth + 0.02]);
+    }
+}
+
+module lid_weave_x_strips_right() {
+    il = weave_insert_l();
+    translate([-weave_split_x, 0, 0])
+    intersection() {
+        lid_weave_x_strips();
+        translate([weave_split_x, -1, -0.01])
+            cube([il - weave_split_x + 1, il + 2, mesh_depth + 0.02]);
+    }
+}
+
+module lid_weave_y_strips_left() {
+    il = weave_insert_l();
+    intersection() {
+        lid_weave_y_strips();
+        translate([-1, -1, -0.01])
+            cube([weave_split_x + 1, il + 2, mesh_depth + 0.02]);
+    }
+}
+
+module lid_weave_y_strips_right() {
+    il = weave_insert_l();
+    translate([-weave_split_x, 0, 0])
+    intersection() {
+        lid_weave_y_strips();
+        translate([weave_split_x, -1, -0.01])
+            cube([il - weave_split_x + 1, il + 2, mesh_depth + 0.02]);
+    }
+}
+
 // ============================================================================
 // HINGE PARTS
 // ============================================================================
@@ -495,62 +557,90 @@ module latch_print_layout() {
 // SPLIT PARTS — For beds smaller than 420mm (e.g. Creality K2 Plus 350mm)
 // ============================================================================
 // Each half is ~210×110mm, fits easily on a 350mm bed.
-// Halves join with alignment pins + M4 bolts.
+// Halves join with interlocking lap joint + printable clamp clips.
 
-// Pin positions along the cut face
-split_pin_positions = [
-    [width * 0.25, wall + 15],
-    [width * 0.75, wall + 15],
-    [width * 0.25, bottom_h - 15],
-    [width * 0.75, bottom_h - 15]
-];
+// Lap joint parameters
+lap_depth = wall / 2;        // half the wall thickness overlaps
+lap_length = 10;             // overlap length along X axis
 
-split_bolt_positions = [
-    [width * 0.5, wall + 30],
-    [width * 0.5, bottom_h - 30]
-];
+// Clamp parameters
+clamp_thickness = 2.5;       // clamp wall thickness
+clamp_clearance = 0.3;       // fit clearance
+clamp_grip      = 15;        // how far clamp extends onto each half
+clamp_tab_h     = 8;         // height of each clamp tab
+
+// --- Lap joint cutout shapes ---
+// Left half keeps outer wall at cut, inner is recessed
+// Right half keeps inner wall at cut, outer is recessed
+// When mated, they interlock like a step joint
+
+module _lap_cut_outer(h) {
+    // Cuts the outer half of the wall at the split face
+    translate([split_x - lap_length, -0.01, -0.01])
+        cube([lap_length + 0.01, wall/2 + 0.01, h + 0.02]);
+    translate([split_x - lap_length, width - wall/2, -0.01])
+        cube([lap_length + 0.01, wall/2 + 0.01, h + 0.02]);
+}
+
+module _lap_cut_inner(h) {
+    // Cuts the inner half of the wall at the split face
+    translate([split_x - lap_length, wall/2, -0.01])
+        cube([lap_length + 0.01, wall/2 + 0.01, h + 0.02]);
+    translate([split_x - lap_length, width - wall, -0.01])
+        cube([lap_length + 0.01, wall/2 + 0.01, h + 0.02]);
+}
+
+// --- Split clamp clip — prints flat, snaps over the joint ---
+module split_clamp() {
+    // U-shaped clip that grips over the box wall at the joint
+    inner_gap = wall + 2 * clamp_clearance;
+    outer_w = inner_gap + 2 * clamp_thickness;
+    total_l = 2 * clamp_grip;
+
+    difference() {
+        // Outer shell
+        translate([-clamp_grip, -clamp_thickness, 0])
+            cube([total_l, outer_w, clamp_tab_h]);
+        // Inner channel (fits over wall)
+        translate([-clamp_grip - 0.01, clamp_clearance, -0.01])
+            cube([total_l + 0.02, inner_gap, clamp_tab_h + 0.02]);
+        // Entry chamfer for easier snap-on
+        translate([-clamp_grip - 0.01, -clamp_thickness - 0.01, clamp_tab_h - 1.5])
+            rotate([0, 0, 0])
+                cube([total_l + 0.02, clamp_thickness * 0.6, 1.51]);
+        translate([-clamp_grip - 0.01, inner_gap + clamp_clearance, clamp_tab_h - 1.5])
+            cube([total_l + 0.02, clamp_thickness * 0.6, 1.51]);
+    }
+    // Inner grip ridges for friction
+    for (side = [0, inner_gap + clamp_clearance - 0.4])
+        for (xo = [-clamp_grip + 3, clamp_grip - 4])
+            translate([xo, side, 1])
+                cube([1, 0.4, clamp_tab_h - 2]);
+}
 
 module box_bottom_left() {
     difference() {
         intersection() {
             box_bottom();
             translate([-1, -1, -standoff_h - 1])
-                cube([split_x + 1, width + 2, bottom_h + standoff_h + 2]);
+                cube([split_x + lap_length + 1, width + 2, bottom_h + standoff_h + 2]);
         }
-        // Alignment pin holes (receive pins from right half)
-        for (p = split_pin_positions)
-            translate([split_x - split_pin_h, p[0], p[1]])
-                rotate([0, 90, 0])
-                    cylinder(d = split_pin_d + split_gap * 2, h = split_pin_h + 0.5);
-        // Bolt through-holes
-        for (p = split_bolt_positions)
-            translate([split_x - 20, p[0], p[1]])
-                rotate([0, 90, 0])
-                    cylinder(d = split_bolt_d, h = 21);
+        // Remove inner wall at the overlap zone (right side mates here)
+        _lap_cut_inner(bottom_h);
     }
 }
 
 module box_bottom_right() {
-    // Translate to origin for printing
     translate([-split_x, 0, 0])
     difference() {
         intersection() {
             box_bottom();
-            translate([split_x, -1, -standoff_h - 1])
-                cube([length - split_x + 1, width + 2, bottom_h + standoff_h + 2]);
+            translate([split_x - lap_length, -1, -standoff_h - 1])
+                cube([length - split_x + lap_length + 1, width + 2, bottom_h + standoff_h + 2]);
         }
-        // Bolt through-holes
-        for (p = split_bolt_positions)
-            translate([split_x - 1, p[0], p[1]])
-                rotate([0, 90, 0])
-                    cylinder(d = split_bolt_d, h = 21);
+        // Remove outer wall at the overlap zone (left side mates here)
+        _lap_cut_outer(bottom_h);
     }
-    // Alignment pins (protrude from cut face)
-    translate([-split_x, 0, 0])
-    for (p = split_pin_positions)
-        translate([split_x, p[0], p[1]])
-            rotate([0, -90, 0])
-                cylinder(d = split_pin_d, h = split_pin_h);
 }
 
 module box_lid_left() {
@@ -558,20 +648,9 @@ module box_lid_left() {
         intersection() {
             box_lid();
             translate([-1, -1, -1])
-                cube([split_x + 1, width + 2, lid_h + 2]);
+                cube([split_x + lap_length + 1, width + 2, lid_h + 2]);
         }
-        for (p = split_pin_positions) {
-            lid_z = p[1] * lid_h / bottom_h;
-            translate([split_x - split_pin_h, p[0], lid_z])
-                rotate([0, 90, 0])
-                    cylinder(d = split_pin_d + split_gap * 2, h = split_pin_h + 0.5);
-        }
-        for (p = split_bolt_positions) {
-            lid_z = p[1] * lid_h / bottom_h;
-            translate([split_x - 20, p[0], lid_z])
-                rotate([0, 90, 0])
-                    cylinder(d = split_bolt_d, h = 21);
-        }
+        _lap_cut_inner(lid_h);
     }
 }
 
@@ -580,22 +659,10 @@ module box_lid_right() {
     difference() {
         intersection() {
             box_lid();
-            translate([split_x, -1, -1])
-                cube([length - split_x + 1, width + 2, lid_h + 2]);
+            translate([split_x - lap_length, -1, -1])
+                cube([length - split_x + lap_length + 1, width + 2, lid_h + 2]);
         }
-        for (p = split_bolt_positions) {
-            lid_z = p[1] * lid_h / bottom_h;
-            translate([split_x - 1, p[0], lid_z])
-                rotate([0, 90, 0])
-                    cylinder(d = split_bolt_d, h = 21);
-        }
-    }
-    translate([-split_x, 0, 0])
-    for (p = split_pin_positions) {
-        lid_z = p[1] * lid_h / bottom_h;
-        translate([split_x, p[0], lid_z])
-            rotate([0, -90, 0])
-                cylinder(d = split_pin_d, h = split_pin_h);
+        _lap_cut_outer(lid_h);
     }
 }
 
@@ -605,7 +672,7 @@ module tray_left() {
     intersection() {
         tray();
         translate([-1, -1, -1])
-            cube([tray_l / 2 + 1, width, tray_h + 2]);
+            cube([tray_l / 2 + lap_length + 1, width, tray_h + 2]);
     }
 }
 
@@ -615,8 +682,8 @@ module tray_right() {
     translate([-tray_l / 2, 0, 0])
     intersection() {
         tray();
-        translate([tray_l / 2, -1, -1])
-            cube([tray_l / 2 + 1, width, tray_h + 2]);
+        translate([tray_l / 2 - lap_length, -1, -1])
+            cube([tray_l / 2 + lap_length + 1, width, tray_h + 2]);
     }
 }
 
@@ -696,9 +763,10 @@ module assembly(lid_ang = 120, show_tray = true, tray_z_lift = 0) {
 // ============================================================================
 // DEFAULT VIEW — uses the view control variables at the top of the file
 // ============================================================================
-assembly(lid_ang = lid_angle,
-         show_tray = show_tray_in_assembly,
-         tray_z_lift = tray_lift);
+if (render_assembly)
+    assembly(lid_ang = lid_angle,
+             show_tray = show_tray_in_assembly,
+             tray_z_lift = tray_lift);
 
 // ============================================================================
 // INDIVIDUAL PART EXPORT

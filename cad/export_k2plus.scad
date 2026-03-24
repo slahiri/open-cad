@@ -20,7 +20,7 @@
 //   Slot 3: Blue PETG        (weave Y-strips, tray)
 //   Slot 4: Black PETG       (latches, hinges)
 // ============================================================================
-include <../cad/protective_storage_box.scad>
+include <protective_storage_box.scad>
 
 // Override — don't render the default assembly
 lid_angle = 0;

@@ -35,24 +35,27 @@ open-cad/
     view_closed.scad              # Assembly view: closed
     view_open.scad                # Assembly view: lid open
     view_open_tray_out.scad       # Assembly view: lid open, tray lifted
-  stl/                          # Export files & STLs
     stl_bottom_left.scad          # Export: box bottom left half
     stl_bottom_right.scad         # Export: box bottom right half
     stl_lid_left.scad             # Export: lid left half
     stl_lid_right.scad            # Export: lid right half
     stl_tray_left.scad            # Export: tray left half
     stl_tray_right.scad           # Export: tray right half
-    stl_weave_frame.scad          # Export: weave border frame
-    stl_weave_x.scad              # Export: weave X-strips (white)
-    stl_weave_y.scad              # Export: weave Y-strips (blue)
+    stl_weave_frame_left.scad     # Export: weave frame left half
+    stl_weave_frame_right.scad    # Export: weave frame right half
+    stl_weave_x_left.scad         # Export: weave X-strips left (white)
+    stl_weave_x_right.scad        # Export: weave X-strips right (white)
+    stl_weave_y_left.scad         # Export: weave Y-strips left (blue)
+    stl_weave_y_right.scad        # Export: weave Y-strips right (blue)
     stl_all_hardware.scad         # Export: hinges + latches on one plate
     export_k2plus.scad            # K2 Plus printing guide
     export_parts.scad             # Generic export guide
+  stl/                          # Generated STL files (gitignored)
 ```
 
 ## How to Export STLs
 
-Each `stl/stl_*.scad` file contains exactly one part. For each:
+Each `cad/stl_*.scad` file contains exactly one part. For each:
 
 1. Open the file in OpenSCAD
 2. **Design -> Render**
@@ -65,9 +68,9 @@ Each `stl/stl_*.scad` file contains exactly one part. For each:
 | Bottom L/R | 2 | 40% | 4 | No | Dark Gray |
 | Lid L/R | 2 | 40% | 4 | No | Dark Gray |
 | Tray L/R | 2 | 20% | 3 | No | Blue |
-| Weave Frame | 1 | 100% | 3 | No | Dark Gray |
-| Weave X-strips | 1 | 100% | 3 | No | White |
-| Weave Y-strips | 1 | 100% | 3 | No | Blue |
+| Weave Frame L/R | 2 | 100% | 3 | No | Dark Gray |
+| Weave X-strips L/R | 2 | 100% | 3 | No | White |
+| Weave Y-strips L/R | 2 | 100% | 3 | No | Blue |
 | Hardware | 1 plate | 60% | 4 | Yes | Black |
 
 Nozzle: 245C | Bed: 80C | Speed: 50mm/s | Layer: 0.2mm (0.15mm for small parts)
@@ -85,7 +88,7 @@ Nozzle: 245C | Bed: 80C | Speed: 50mm/s | Layer: 0.2mm (0.15mm for small parts)
 1. Bolt box bottom halves together (M4)
 2. Bolt lid halves together (M4)
 3. Glue tray halves
-4. Press-fit weave into lid recess
+4. Glue weave halves together, press-fit into lid recess
 5. Screw hinges to back wall, insert pin rods
 6. Screw latches to front wall
 7. Add rubber feet and gasket cord

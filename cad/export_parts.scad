@@ -6,7 +6,7 @@
 // Uncomment ONE part at a time, then:
 //   F6 (Render) → F7 (Export STL)
 // ============================================================================
-include <../cad/protective_storage_box.scad>
+include <protective_storage_box.scad>
 
 lid_angle = 0;
 show_tray_in_assembly = false;
