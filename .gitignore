@@ -1,7 +1,8 @@
-# Screenshots
+# Screenshots (except docs/)
 *.png
 *.jpg
 *.jpeg
+!docs/*.png
 
 # Exported STL files (regenerate from .scad sources)
 *.stl

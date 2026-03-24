@@ -1,6 +1,8 @@
 # Protective Storage Box — Pelican/Gun Case Style
 
-A 3D-printable protective storage box designed in OpenSCAD. Features a clamshell design with barrel hinges, butterfly latches, removable tray, and a decorative basket-weave lid insert with multi-color support.
+![Protective Storage Box](docs/hero.png)
+
+A 3D-printable protective storage box designed in OpenSCAD. Features a clamshell design with barrel hinges, butterfly latches, removable compartmented tray, and snap-fit 3-piece construction for printers with beds smaller than 420mm.
 
 ## Specifications
 
